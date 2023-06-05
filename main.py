@@ -18,8 +18,12 @@ from envs import make_vec_envs
 from model import Policy
 from storage import RolloutStorage
 
+import wandb
+
 def main():
     args = get_args()
+
+    wandb.init(project='car-racing-ppo')
 
     print(args)
     torch.manual_seed(args.seed)
@@ -48,7 +52,7 @@ def main():
     print("Loaded env...")
     activation = None
     # if args.env_name == 'CarRacing-v0' and args.use_activation:
-    activation = torch.tanh
+    # activation = torch.tanh
     print(activation)
 
     actor_critic = Policy(
@@ -94,16 +98,19 @@ def main():
                 agent.optimizer, j, num_updates,
                 agent.optimizer.lr if args.algo == "acktr" else args.lr)
 
+        action_statistics = []
+
         for step in range(args.num_steps):
             # Sample actions
             with torch.no_grad():
                 value, action, action_log_prob, recurrent_hidden_states = actor_critic.act(
                     rollouts.obs[step], rollouts.recurrent_hidden_states[step],
                     rollouts.masks[step])
+            
+            action_statistics.append(action.cpu().numpy())
 
             # Observe reward and next obs
             obs, reward, done, infos = envs.step(action)
-            print(action)
             for info in infos:
                 if 'episode' in info.keys():
                     episode_rewards.append(info['episode']['r'])
@@ -158,6 +165,20 @@ def main():
                         np.max(episode_rewards), dist_entropy, value_loss,
                         action_loss))
 
+        action_statistics = np.array(action_statistics)
+        n_action = action_statistics.shape[-1]
+        action_statistics = action_statistics.reshape(-1, n_action)
+        
+        for i in range(n_action):
+            wandb.log({
+                f'action[{i}]': wandb.Histogram(action_statistics[:, i])
+            }, step=(j + 1) * args.num_processes * args.num_steps)
+
+        wandb.log({
+            'train/dist_entropy': dist_entropy,
+            'train/value_loss': value_loss,
+            'train/action_loss': action_loss
+        }, step=(j + 1) * args.num_processes * args.num_steps)
 
 if __name__ == "__main__":
     main()

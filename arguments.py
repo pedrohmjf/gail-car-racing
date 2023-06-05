@@ -66,22 +66,22 @@ def get_args():
     parser.add_argument(
         '--num-processes',
         type=int,
-        default=1,
+        default=8,
         help='how many training CPU processes to use (default: 16)')
     parser.add_argument(
         '--num-steps',
         type=int,
-        default=128,
+        default=1024,
         help='number of forward steps in A2C (default: 5)')
     parser.add_argument(
         '--ppo-epoch',
         type=int,
-        default=1,
+        default=16,
         help='number of ppo epochs (default: 4)')
     parser.add_argument(
         '--num-mini-batch',
         type=int,
-        default=4,
+        default=16,
         help='number of batches for ppo (default: 32)')
     parser.add_argument('--use_activation', default=0, type=int,
             help='Use final activation? (Useful for certain scenarios)')
